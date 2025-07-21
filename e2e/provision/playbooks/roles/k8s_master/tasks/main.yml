@@ -5,7 +5,7 @@
     path: /etc/apt/sources.list
     regexp: 'http://.*.ec2.archive.ubuntu.com'
     replace: 'http://archive.ubuntu.com'
-  
+
 - name: update APT packages
   apt:
     update_cache: yes
@@ -37,8 +37,8 @@
   blockinfile:
     path: /etc/modules-load.d/containerd.conf
     block: |
-          overlay
-          br_netfilter
+      overlay
+      br_netfilter
 
 - name: create an empty file for Kubernetes sysctl params
   copy:
@@ -51,9 +51,9 @@
     path: /etc/sysctl.d/99-kubernetes-cri.conf
     line: "{{ item }}"
   with_items:
-    - 'net.bridge.bridge-nf-call-iptables  = 1'
-    - 'net.ipv4.ip_forward                 = 1'
-    - 'net.bridge.bridge-nf-call-ip6tables = 1'
+  - 'net.bridge.bridge-nf-call-iptables  = 1'
+  - 'net.ipv4.ip_forward                 = 1'
+  - 'net.bridge.bridge-nf-call-ip6tables = 1'
 
 - name: apply sysctl params without reboot
   command: sysctl --system
@@ -77,6 +77,7 @@
     force: true
 - name: Gather facts
   setup:
+
 
 - name: add Docker's APT repository
   apt_repository:
@@ -154,7 +155,6 @@
     name: net.ipv4.ip_forward
     value: 1
 
-
 - name: install pip3
   apt: name=python3-pip state=present
 
@@ -167,17 +167,15 @@
 - name: Gather facts
   setup:
 
-
-# - name: Staring & enabling Docker & kubelet on Master Node
-#   service:
-#     name: "{{ item }}"
-#     state: started
-#     enabled: yes
-#   loop: "{{ service_names }}"
+    # - name: Staring & enabling Docker & kubelet on Master Node
+    #   service:
+    #     name: "{{ item }}"
+    #     state: started
+    #     enabled: yes
+    #   loop: "{{ service_names }}"
 
 - name: Pulling the images of k8s master
   command: kubeadm config images pull
-
 
 - name: Initializing k8s cluster
   command: kubeadm init --pod-network-cidr=10.244.0.0/16 --ignore-preflight-errors=NumCPU --ignore-preflight-errors=Mem
@@ -188,10 +186,6 @@
       mkdir -p $HOME/.kube
       sudo cp -i /etc/kubernetes/admin.conf $HOME/.kube/config
       sudo chown $(id -u):$(id -g) $HOME/.kube/config
-
-
-
-
 
 - name: Run kubectl config current-context
   command: kubectl config current-context
@@ -211,12 +205,10 @@
 
 - name: Display extracted context name
   debug:
-    msg: "Context name after '@' is: {{ context_name }}"    
+    msg: "Context name after '@' is: {{ context_name }}"
 
 - name: Rename current context name
-  command: kubectl config rename-context {{ original_current_context }} {{ context_name }} 
-
-
+  command: kubectl config rename-context {{ original_current_context }} {{ context_name }}
 
 - name: Get the latest Cilium CLI version
   shell: curl -s https://raw.githubusercontent.com/cilium/cilium-cli/main/stable.txt
@@ -247,50 +239,49 @@
     path: /tmp/cilium-linux-{{ cli_arch }}.tar.gz{{ item }}
     state: absent
   loop:
-    - ''
-    - '.sha256sum'    
+  - ''
+  - '.sha256sum'
 
 - name: Deploying Flannel on Master Node
   command: kubectl apply -f https://raw.githubusercontent.com/coreos/flannel/master/Documentation/kube-flannel.yml
-  
-# - name: Run Cilium Installation on master node
-#   command: cilium install --set cluster.name={{ context_name }} --set cluster.id=1 --context {{ context_name }}
+  # - name: Run Cilium Installation on master node
+  #   command: cilium install --set cluster.name={{ context_name }} --set cluster.id=1 --context {{ context_name }}
 
-# - name: Deploying Calico on Master Node
+  # - name: Deploying Calico on Master Node
   # command: kubectl create -f https://raw.githubusercontent.com/projectcalico/calico/v3.28.0/manifests/tigera-operator.yaml
   # command: kubectl apply -f https://raw.githubusercontent.com/projectcalico/calico/v3.26.1/manifests/calico.yaml
 
-# - name: Create Calico Resource Config
-#   kubernetes.core.k8s:
-#     state: present
-#     context: "{{ context_name }}"
-#     definition:
-#       apiVersion: operator.tigera.io/v1
-#       kind: Installation
-#       metadata:
-#         name: default
-#       spec:
-#         # Configures Calico networking.
-#         calicoNetwork:
-#           ipPools:
-#           - name: default-ipv4-ippool
-#             blockSize: 26
-#             cidr: 172.24.0.0/16
-#             encapsulation: VXLANCrossSubnet
-#             natOutgoing: Enabled
-#             nodeSelector: all()
-#             containerIPForwarding: Enabled
+  # - name: Create Calico Resource Config
+  #   kubernetes.core.k8s:
+  #     state: present
+  #     context: "{{ context_name }}"
+  #     definition:
+  #       apiVersion: operator.tigera.io/v1
+  #       kind: Installation
+  #       metadata:
+  #         name: default
+  #       spec:
+  #         # Configures Calico networking.
+  #         calicoNetwork:
+  #           ipPools:
+  #           - name: default-ipv4-ippool
+  #             blockSize: 26
+  #             cidr: 172.24.0.0/16
+  #             encapsulation: VXLANCrossSubnet
+  #             natOutgoing: Enabled
+  #             nodeSelector: all()
+  #             containerIPForwarding: Enabled
 
-# - name: Create Calico Resource Config
-#   kubernetes.core.k8s:
-#     state: present
-#     context: "{{ context_name }}"
-#     definition:
-#       apiVersion: operator.tigera.io/v1
-#       kind: APIServer
-#       metadata:
-#         name: default
-#       spec: {}
+  # - name: Create Calico Resource Config
+  #   kubernetes.core.k8s:
+  #     state: present
+  #     context: "{{ context_name }}"
+  #     definition:
+  #       apiVersion: operator.tigera.io/v1
+  #       kind: APIServer
+  #       metadata:
+  #         name: default
+  #       spec: {}
 
 
 
@@ -303,14 +294,14 @@
 
 - name: Install Docker packages
   apt:
-    name: 
-      - docker-ce
-      - docker-ce-cli
-      - containerd.io
-      - docker-buildx-plugin
-      - docker-compose
+    name:
+    - docker-ce
+    - docker-ce-cli
+    - containerd.io
+    - docker-buildx-plugin
+    - docker-compose
     state: present
-  
+
 - name: Add user to docker group
   user:
     name: "ubuntu"
@@ -326,3 +317,24 @@
 
 # - name: Deploying local path provisioner
 #   command: kubectl apply -f https://raw.githubusercontent.com/rancher/local-path-provisioner/v0.0.26/deploy/local-path-storage.yaml
+
+
+- name: Download Velero tarball
+  get_url:
+    url: https://github.com/vmware-tanzu/velero/releases/download/v1.7.0/velero-v1.7.0-linux-amd64.tar.gz
+    dest: /tmp/velero-v1.7.0-linux-amd64.tar.gz
+
+- name: Extract Velero tarball
+  unarchive:
+    src: /tmp/velero-v1.7.0-linux-amd64.tar.gz
+    dest: /tmp/
+    remote_src: yes
+
+# - name: Copy Velero binary to /usr/local/bin
+#   ansible.builtin.copy:
+#     src: /tmp/velero-v1.7.0-linux-amd64/velero
+#     dest: /usr/local/bin/velero
+#     mode: '0755'
+#     remote_src: yes
+- name: Move Velero binary to /usr/local/bin
+  ansible.builtin.command: mv /tmp/velero-v1.7.0-linux-amd64/velero /usr/local/bin/velero

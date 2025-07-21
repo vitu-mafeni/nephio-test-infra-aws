@@ -11,15 +11,23 @@
 k8s:
   context: kubernetes
 
-local_path_provisioner:
+# local_path_provisioner:
+#   k8s:
+#     namespace: local-path-storage
+#   kpt:
+#     package:
+#       repo_uri: "{{ nephio_catalog_repo_uri }}"
+#       pkg: infra/capi/local-path-provisioner
+#       version: main
+
+longhorn_storage_provisioner:
   k8s:
-    namespace: local-path-storage
+    namespace: longhorn-system
   kpt:
     package:
       repo_uri: "{{ nephio_catalog_repo_uri }}"
-      pkg: infra/capi/local-path-provisioner
+      pkg: infra/capi/longhorn-storage-provisioner
       version: main
-
 
 gitea:
   k8s:
@@ -30,72 +38,73 @@ nephio_catalog_repo_uri: https://github.com/vitu1234/catalog.git
 nephio_catalog_branch: main
 
 nephio_stock_repos:
-  - name: catalog-distros-sandbox
-    repo: "{{ nephio_catalog_repo_uri }}"
-    directory: /distros/sandbox
-    branch: "{{ nephio_catalog_branch }}"
-  - name: catalog-workloads-free5gc
-    repo: "{{ nephio_catalog_repo_uri }}"
-    directory: /workloads/free5gc
-    branch: "{{ nephio_catalog_branch }}"
-  - name: catalog-infra-capi
-    repo: "{{ nephio_catalog_repo_uri }}"
-    directory: /infra/capi
-    branch: "{{ nephio_catalog_branch }}"
-  - name: catalog-nephio-core
-    repo: "{{ nephio_catalog_repo_uri }}"
-    directory: /nephio/core
-    branch: "{{ nephio_catalog_branch }}"
-  - name: catalog-nephio-optional
-    repo: "{{ nephio_catalog_repo_uri }}"
-    directory: /nephio/optional
-    branch: "{{ nephio_catalog_branch }}"
-  - name:  oai-packages
-    repo: https://github.com/vitu1234/oai-packages.git
-    directory: /
-    branch: main
-  - name: catalog-workloads-oai-ran
-    repo: "{{ nephio_catalog_repo_uri }}"
-    directory: /workloads/oai
-    branch: "{{ nephio_catalog_branch }}"
-  - name: catalog-workloads-tools
-    repo: "{{ nephio_catalog_repo_uri }}"
-    directory: /workloads/tools
-    branch: "{{ nephio_catalog_branch }}"
-    
+- name: catalog-distros-sandbox
+  repo: "{{ nephio_catalog_repo_uri }}"
+  directory: /distros/sandbox
+  branch: "{{ nephio_catalog_branch }}"
+- name: catalog-workloads-free5gc
+  repo: "{{ nephio_catalog_repo_uri }}"
+  directory: /workloads/free5gc
+  branch: "{{ nephio_catalog_branch }}"
+- name: catalog-infra-capi
+  repo: "{{ nephio_catalog_repo_uri }}"
+  directory: /infra/capi
+  branch: "{{ nephio_catalog_branch }}"
+- name: catalog-nephio-core
+  repo: "{{ nephio_catalog_repo_uri }}"
+  directory: /nephio/core
+  branch: "{{ nephio_catalog_branch }}"
+- name: catalog-nephio-optional
+  repo: "{{ nephio_catalog_repo_uri }}"
+  directory: /nephio/optional
+  branch: "{{ nephio_catalog_branch }}"
+- name: oai-packages
+  repo: https://github.com/vitu1234/oai-packages.git
+  directory: /
+  branch: main
+- name: catalog-workloads-oai-ran
+  repo: "{{ nephio_catalog_repo_uri }}"
+  directory: /workloads/oai
+  branch: "{{ nephio_catalog_branch }}"
+- name: catalog-workloads-tools
+  repo: "{{ nephio_catalog_repo_uri }}"
+  directory: /workloads/tools
+  branch: "{{ nephio_catalog_branch }}"
 
 nephio:
   k8s:
     namespaces:
-      - porch-fn-system
-      - porch-system
-      - nephio-system
-      - config-management-monitoring
-      - config-management-system
-      - resource-group-system
-      - argocd
+    - porch-fn-system
+    - porch-system
+    - nephio-system
+    - config-management-monitoring
+    - config-management-system
+    - resource-group-system
+    - argocd
+    - flux-system
+    - minio-system
   kpt:
     packages:
-      - repo_uri: "{{ nephio_catalog_repo_uri }}"
-        pkg: nephio/core/porch
-        version: main
-        async: 480
-        poll: 5
-      - repo_uri: "{{ nephio_catalog_repo_uri }}"
-        pkg: nephio/core/nephio-operator
-        version: main
-        async: 480
-        poll: 5
-      - repo_uri: "{{ nephio_catalog_repo_uri }}"
-        pkg: nephio/core/argo-cd
-        version: main
-        async: 240
-        poll: 5
-      - repo_uri: "{{ nephio_catalog_repo_uri }}"
-        pkg: nephio/optional/network-config
-        version: main
-        async: 480
-        poll: 0
+    - repo_uri: "{{ nephio_catalog_repo_uri }}"
+      pkg: nephio/core/porch
+      version: main
+      async: 480
+      poll: 5
+    - repo_uri: "{{ nephio_catalog_repo_uri }}"
+      pkg: nephio/core/nephio-operator
+      version: main
+      async: 480
+      poll: 5
+    - repo_uri: "{{ nephio_catalog_repo_uri }}"
+      pkg: nephio/core/argo-cd
+      version: main
+      async: 240
+      poll: 5
+    - repo_uri: "{{ nephio_catalog_repo_uri }}"
+      pkg: nephio/optional/network-config
+      version: main
+      async: 480
+      poll: 0
 
 nephio_webui:
   k8s:
@@ -106,4 +115,20 @@ nephio_webui:
       pkg: nephio/optional/webui
       version: main
 
-
+disaster_recovery:
+  k8s:
+    namespaces:
+    - flux-system
+    - minio-system
+  kpt:
+    packages:
+    - repo_uri: "{{ nephio_catalog_repo_uri }}"
+      pkg: nephio/optional/flux-helm-controllers
+      version: main
+      async: 480
+      poll: 5
+    - repo_uri: "{{ nephio_catalog_repo_uri }}"
+      pkg: nephio/optional/minio
+      version: main
+      async: 480
+      poll: 5
