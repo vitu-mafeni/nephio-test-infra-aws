@@ -102,6 +102,21 @@ cluster_api:
       #   async: 1500
       #   poll: 0
 
+
+kt_cloud_api:
+  enabled: true
+  k8s:
+    namespaces:
+      - kt-cloud-operator-system
+  kpt:
+    packages:
+      - repo_uri: "{{ nephio_catalog_repo_uri }}"
+        pkg: infra/kt/kt-cloud-operator
+        version: "{{ nephio_catalog_revision }}"
+        async: 900
+        poll: 5
+
+
 metallb:
   enabled: true
   k8s:

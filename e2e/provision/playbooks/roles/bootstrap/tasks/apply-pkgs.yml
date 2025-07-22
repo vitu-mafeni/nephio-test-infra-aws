@@ -19,11 +19,12 @@
     resource_backend_pkgs: "{{ resource_backend.enabled | ternary(resource_backend.kpt.packages, []) }}"
     metallb_pkgs: "{{ metallb.enabled | ternary(metallb.kpt.packages, []) }}"
     cluster_api_pkgs: "{{ cluster_api.enabled | ternary(cluster_api.kpt.packages, []) }}"
+    kt_cloud_api_pkgs: "{{ kt_cloud_api.enabled | ternary(kt_cloud_api.kpt.packages, []) }}"
 
 - name: Deploy base packages
   ansible.builtin.include_role:
     name: kpt
-  loop: "{{ cert_manager_pkgs + gitea_pkgs + resource_backend_pkgs + metallb_pkgs + cluster_api_pkgs }}"
+  loop: "{{ cert_manager_pkgs + gitea_pkgs + resource_backend_pkgs + metallb_pkgs + cluster_api_pkgs + kt_cloud_api_pkgs }}"
   vars:
     repo_uri: "{{ item.repo_uri }}"
     pkg: "{{ item.pkg }}"
@@ -49,10 +50,11 @@
     resource_backend_namespaces: "{{ resource_backend.enabled | ternary(resource_backend.k8s.namespaces, []) }}"
     metallb_namespaces: "{{ metallb.enabled | ternary(metallb.k8s.namespaces, []) }}"
     cluster_api_namespaces: "{{ cluster_api.enabled | ternary(cluster_api.k8s.namespaces, []) }}"
+    kt_cloud_api_namespaces: "{{ kt_cloud_api.enabled | ternary(kt_cloud_api.k8s.namespaces, []) }}"
 
 - name: Wait for deployments
   ansible.builtin.include_tasks: wait-deployments.yml
-  loop: "{{ cert_manager_namespaces + gitea_namespaces + resource_backend_namespaces + metallb_namespaces + cluster_api_namespaces }}"
+  loop: "{{ cert_manager_namespaces + gitea_namespaces + resource_backend_namespaces + metallb_namespaces + cluster_api_namespaces + kt_cloud_api_namespaces }}"
   loop_control:
     loop_var: namespace
   vars:
