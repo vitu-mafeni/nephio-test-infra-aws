@@ -5,8 +5,13 @@ instance_tag:
 - control-demo
 - node1-demo
 - node2-demo
+- control-demo
+- node1-demo
+- node2-demo
 
 python_pkgs:
+- boto
+- boto3
 - boto
 - boto3
 
@@ -14,9 +19,10 @@ sg_name: default
 region_name: ap-southeast-1
 # ami_id: ami-09a7535106fbd42d5 #ubuntu 22.04 LTS
 ami_id: ami-0c1907b6d738188e5 #ubuntu 22.04 LTS
+ami_id: ami-0c1907b6d738188e5 #ubuntu 22.04 LTS
 
 keypair: mynephio2025
-instance_flavour: t3.xlarge
+instance_flavour: t3.large
 
 vpc_name: nephio-5g
 vpc_cidr_block: 192.168.0.0/20

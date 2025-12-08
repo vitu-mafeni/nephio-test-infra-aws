@@ -1,278 +1,292 @@
 # AWS Nephio Bootstrapping, 5G Workload cluster Guide
 
-## OVERVIEW STEPS
+### **SETTING UP ANSIBLE, AWS CLI, OTHER VARIABLES**
+
+- Instructions to setup ansible, AWS CLI and other python variable [HERE](docs/pre-setup.md)
+- To follow pictorial step by step guide, check [HERE](docs/picture-step-by-step.md)
+- All commands used are in this guide
+- Management cluster booststrapping [HERE](#bootstrap-management-cluster)
+- Workload Cluster creation [HERE](#create-workload-clusters)
+- OAI 5G cluster deployment [HERE](docs/oai-5g-deployment.md)
+
+### **IMPORTANT NOTES**
+
+- This guide is for creating 5G kubernetes clusters - self managed on AWS
+- Currently tested on 1 region, 1 VPC and Same AZ with multiple subnets
+- The catalog used in this demo ([HERE](https://github.com/vitu1234/catalog)) is shared across multiple cluster providers. Some fields, such as the `mode` in the Multus `NetworkAttachmentDefinition` custom resource, are set to `L3` by default. However, on AWS, an `L2` configuration is recommended. You can modify the package before deployment, or apply the fix demonstrated in the video tutorial.
+- OAI packages used are on this repo ([HERE](https://github.com/vitu1234/oai-packages))
+- The oai packages used are modified to suite the proposed target topology
+- All the network functions fields have been prepopulated with configurations matching the test environment
+- All AWS resources are pre-created during management cluster bootstrapping
+- The management cluster is deployed in a public subnet to allow the Gitea server to be accessible from any cluster that requires it
+- Make sure you follow [THIS](#if-using-cilium-cni) if you are usimg Cilium CNI
+
+### **RESULTS**
+
+ **WHAT'S WORKING**
+
+- Cluster creation and management via gitops on AWS
+- Network function deployment and management via gitops
+- All network functions can run and connect to each other
+
+**WHAT'S NOT WORKING**
+
+- UE unable to ping
+
+### **STEPS OVERVIEW**
+
+#### Installation 1 - AWS create resources from the bootstrap script
+
+- VPC
+- Private and Public subnets
+- Route Tables for each subnet - one public and one private gateways are created
+- NAT gateway
+- Internet gateway
+- To keep things simple and POC, the management cluster is in the public az and all workload clusters are in private az but the process is the same to achieve workload clusters in different az same region and VPC
+
+  ![image.png](images/images_bootstrap_5g_guide/image.png)
+
+#### Installation 2 – Create Management Cluster
+
+- Set Variables from AWS, setup credentials for AWS and run the ansible playbooks to create a cluster on the public subnet.
+- Ansible will automate creation of 3 AWS EC2 instances, install Kubernetes, setup and configure all nephio components to make this the management cluster
+
+  ![image.png](images/images_bootstrap_5g_guide/image%201.png)
+
+#### Installation 3 – Provision Workload Clusters
+
+- SSH to the control node of the management cluster or access the Nephio WebUI to create Workload clusters
+- Either PorchCtl or the WebUI can create the clusters
+- After workload clusters are provisioned, it is important to install a CNI
+- After Provisioning, the workload clusters connect to their respective git repo on management cluster git server
+- ArgoCD is installed on each cluster to watch and pull from their respective repo resources
+
+  ![image.png](images/images_bootstrap_5g_guide/image%202.png)
+
+#### Installation 4 – Configure Workload Cluster’s CNI
+
+- Cilium CNI is manually installed on the workload clusters to achieve multi-cluster connectivity
+- If multi-cluster connectivity is not a priority, AWS VPC CNI, flannel or calico CNIs are readily available as KPT packages to be automatically installed via Nephio
+
+  ![image.png](images/images_bootstrap_5g_guide/image%203.png)
 
 ### **BOOTSTRAP MANAGEMENT CLUSTER**
 
 **Requirements Management cluster**
 
 - Linux Flavour: Ubuntu-22.04-jammy
+- AWS flavor depends on region selected. If `ap-southeast-1` region, you can use this AMI: `ami-0c1907b6d738188e5`
 - Minimum 4 cores
 - 8 GB memory
 - 100 GB disk size
-- Manually create VPC with 2 availability zones each having one subnet. For simplicity, one az is enough
-- Install clusterawsadm and AWS CLI on the local machine
-- Configure AWS CLI: [https://docs.aws.amazon.com/cli/latest/userguide/getting-started-quickstart.html](https://docs.aws.amazon.com/cli/latest/userguide/getting-started-quickstart.html)
+- AWS CLI already setup on the Local Server to run the bootstrapping process. Check guide [HERE](docs/pre-setup.md) or official docs [HERE](https://docs.aws.amazon.com/cli/latest/userguide/getting-started-quickstart.html)
+- Install clusterawsadm and AWS CLI on the Local Server. Check official guide [HERE](https://cluster-api-aws.sigs.k8s.io/getting-started)
 
-### **INSTALLATION - PREPARE ENVIRONMENT**
+**Command line step by step guide**
 
-- **Create AWS resources manually**
-
-  - VPC
-  - Private and Public Gateway
-  - Route Tables for each subnet
-  - NAT gateway
-  - Internet gateway
-  - To keep things simple and POC, the management cluster is in the public az and all workload clusters are in private az but the process is the same to achieve workload clusters in different az same region and VPC
-
-  ![image.png](images/images_bootstrap_5g_guide/image.png)
-
-  ### Installation 2 – Create Management Cluster
-
-
-  - Set Variables from AWS, setup credentials for AWS and run the ansible playbooks to create a cluster on the public subnet.
-  - Ansible will automate creation of 3 AWS EC2 instances, install Kubernetes, setup and configure all nephio components to make this the management cluster
-
-  ![image.png](images/images_bootstrap_5g_guide/image%201.png)
-
-  ### Installation 3 – Provision Workload Clusters
-
-  - SSH to the control node of the management cluster or access the Nephio WebUI to create Workload clusters
-  - Either PorchCtl or the WebUI can create the clusters
-  - After workload clusters are provisioned, it is important to install a CNI
-  - After Provisioning, the workload clusters connect to their respective git repo on management cluster git server
-  - ArgoCD is installed on each cluster to watch and pull from their respective repo resources
-
-  ![image.png](images/images_bootstrap_5g_guide/image%202.png)
-
-  ### Installation 4 – Configure Workload Cluster’s CNI
-
-  - Cilium CNI is manually installed on the workload clusters to achieve multi-cluster connectivity
-  - If multi-cluster connectivity is not a priority, AWS VPC CNI, flannel or calico CNIs are readily available as KPT packages to be automatically installed via Nephio
-
-  ![image.png](images/images_bootstrap_5g_guide/image%203.png)
-
-### **SETUP ANSIBLE - AWS CREDENTIALS**
-
-This should contain aws credentials
-
-In the playbooks/cred.yml file add the AWS access 
+  Clone, rename and move the folder into nephio
 
 ```bash
-access_key: PUT_HERE
-secret_key: PUT_HERE
+  git clone https://github.com/vitu1234/nephio-test-infra-aws.git
 ```
 
-#### Method 1: Manually enter password
-
-- Create an Ansible vault called pass.yml in the playbooks/cred.yml directory with the following command,
+  Go the e2e/provision and run the following command
 
 ```bash
-  # 1. Create an ansible vault
-  ansible-vault create playbooks/cred.yml
-
-  # 2. There's a prompt for a password, it's needed for playbook execution/edit
-  New Vault password:
-  Confirm New Vault password:
+  pip install -r requirements.txt
 ```
 
-With this method, you will be prompted for a password every time playbooks are executed or pass.yml is edited.
-
-#### Method 2: Automate password access
-
-- Though less secure, pass.yml (your ansible vault) can be created with an accompanying password file. This is referenced when executing playbooks and editing pass.yml so you no longer need to manually enter the password.
+  Since ansible is installed to another location, add it to path
 
 ```bash
-# 1. Create a hashed password file vault.pass in the root directory
-openssl rand -base64 2048 > vault.pass
+  export PATH="$PATH:/home/ubuntu/.local/bin"
+  source ~/.bashrc   # or ~/.bash_profile or ~/.profile based on your configuration
 
-# 2. Create an ansible vault. 'vault.pass' is referenced with '--vault-password-file' option
-ansible-vault create playbooks/cred.yml --vault-password-file vault.pass
 ```
 
-With this method, --vault-password-file must now always be used when running the playbook or editing pass.yml, for example,
+  Run the following Galaxy commands
 
 ```bash
-# 1. Create a hashed password file vault.pass in the root directory
-openssl rand -base64 2048 > vault.pass
-
-# 2. Create an ansible vault. 'vault.pass' is referenced with '--vault-password-file' option
-ansible-vault create playbooks/cred.yml --vault-password-file vault.pass
+  ansible-galaxy collection install ansible.posix
+  ansible-galaxy collection install amazon.aws
 ```
 
-With this method, --vault-password-file must now always be used when running the playbook or editing pass.yml, for example,
+  In the same folder e2e/provision run the following command
 
 ```bash
-# Editing 'pass.yaml'
-ansible-vault edit playbooks/cred.yml --vault-password-file vault.pass
+  ansible-galaxy install -r galaxy-requirements.yml
 ```
 
-#### Bonus - Encrypt and decrypt the credentials
+  **In AWS, create and download security key pair. Get the region name, keypair and preferrered AMI**
+
+  Open */e2e/provision/playbooks/roles/ec2/vars/main.yml*  and put the variable names in *region_name, subnet_name, ami_id, vpc_id, keypair* and *instance_flavour.*
+
+  Instance names/tags can also be changed in this file, I named mine control-demo, node1-demo, node2-demo
+
+  Place the downloaded key pair in *e2e/provision/playbooks/nephio3.pem* in my case the keypair name in AWS is mynephio2025 and the file name is also mynephio2025. Change based on your naming
+
+  Change the permission of the keypair
 
 ```bash
-ansible-vault encrypt playbooks/cred.yml
-ansible-vault decrypt playbooks/cred.yml
+  chmod 400 playbooks/nephio3.pem
 ```
 
-### **STEP BY STEP PICTURE VIEW GUIDE**
+  The file *e2e/provision/install_sandbox.sh*  also contains the location of the keyfile above on private_key_file=~/nephio-test-infra-aws/e2e/provision/playbooks/nephio3.pem make sure it matches your naming and location
+
+  Place AWS credentials in *e2e/provision/playbooks/setup.yml* in the following section for cloud formation
+
+```yaml
+  environment:
+      AWS_REGION: ap-southeast-1
+      AWS_ACCESS_KEY_ID: ""
+      AWS_SECRET_ACCESS_KEY: ""
+      AWS_SESSION_TOKEN: ""
+```
+
+  **Note:** The `AWS_SESSION_TOKEN` variable may be commented out depending on whether your AWS account has 2FA/MFA enabled. If 2FA/MFA is **not** enabled, you should comment out this variable.
+
+  Like wise, place the credentials in *e2e/provision/playbooks/roles/capa/vars/main.yml* following section for CAPA
+
+```yaml
+  aws_region: "ap-southeast-1"
+  aws_access_key: ""
+  aws_secret_key: ""
+  aws_session_token:
+  cloud_formation_create: false 
+```
+
+> **Note:**
+> The `aws_session_token` variable may be commented out depending on whether your AWS account has 2FA/MFA enabled.
+> If 2FA/MFA is **not** enabled, you should comment out this variable.
+>
+> The `cloud_formation_create` variable must remain set to **false** if any of the other accounts already have the CAPA CloudFormation stack created.
+> Set it to **true** only if the stack has **not** been created elsewhere.
+
+  In the file `e2e/provision/playbooks/roles/ec2/vars/main.yml`, you must modify specific values to suit your AWS environment and 5G OAI deployment. This file defines variables for the AWS VPC setup, EC2 instance type, AMI selection, and subnets that map to the 5G OAI network topology.
+
+  **Security Group and Region**
+
+```yaml
+  sg_name: default
+  region_name: ap-southeast-1
+```
+
+  **AMI Selection**
+  Choose the appropriate AMI for your region and operating system. The default is Ubuntu 22.04 LTS for the region i am using:
+
+```yaml
+  # ami_id: ami-09a7535106fbd42d5  # Ubuntu 22.04 LTS (alternative)
+  ami_id: ami-0c1907b6d738188e5    # Ubuntu 22.04 LTS (default)
+```
+
+  **Key Pair and Instance Flavor**
+  Define the EC2 SSH key pair and instance type to be used:
+
+```yaml
+  keypair: mynephio2025
+  instance_flavour: t3.large
+```
+
+  **VPC and Primary Subnets**
+  These settings configure the main network infrastructure:
+
+```yaml
+  vpc_name: nephio-5g
+  vpc_cidr_block: 192.168.0.0/20
+  subnet_cidr_block: 192.168.0.0/24              # Public instances subnet
+  private_subnet_cidr_block: 192.168.1.0/24      # Primary private subnet
+```
+
+  **Additional Private Subnets**
+  These are used to predefine the topology and assign specific functions to different zones:
+
+```yaml
+  private_subnets:
+    - name: my_private_subnet1
+      cidr: 192.168.9.0/24
+    - name: my_private_subnet2
+      cidr: 192.168.8.0/24
+    - name: my_private_subnet3
+      cidr: 192.168.10.0/24
+    - name: my_private_subnet4
+      cidr: 192.168.11.0/24
+```
+
+  **Network Interfaces (Aligned with 5G OAI Topology)**
+  Each interface below is tied to a specific subnet and IP address. These IPs must match the expected addresses for each 5G component:
+
+```yaml
+  network_interfaces:
+    - name: customeni-edge1
+      ip: 192.168.9.203      # UPF_N4_IP
+      subnet_name: my_private_subnet1
+    - name: customeni-edge2
+      ip: 192.168.8.16       # UPF_N6_IP
+      subnet_name: my_private_subnet2
+    - name: customeni-edge3
+      ip: 192.168.10.50      # CUUP_F1U_GW
+      subnet_name: my_private_subnet3
+    - name: customeni-edge4
+      ip: 192.168.11.60      # CUUP_E1_IP
+      subnet_name: my_private_subnet4
+
+    - name: customeni-core1
+      ip: 192.168.8.53       # AMF_N2_IP
+      subnet_name: my_private_subnet2
+    - name: customeni-core2
+      ip: 192.168.9.55       # SMF_N4_IP
+      subnet_name: my_private_subnet1
 
-#### Step 1
+    - name: customeni-regional1
+      ip: 192.168.8.55       # CUCP_N2_IP
+      subnet_name: my_private_subnet2
+    - name: customeni-regional2
+      ip: 192.168.11.20      # CUCP_E1_IP
+      subnet_name: my_private_subnet4
+    - name: customeni-regional3
+      ip: 192.168.10.21      # CUCP_F1C_IP
+      subnet_name: my_private_subnet3
+```
 
-- Create and Configure AWS Resources
+> **Tips**
 
-  ![create-vpc.jpg](images/images_bootstrap_5g_guide/create-vpc.jpg)
-- After creating you should have something like this
+> - Make sure IP addresses and subnet CIDRs do not overlap.
+> - Subnet names must match exactly with the names declared in the `private_subnets` section.
+> - All network interface IPs should reflect your intended 5G deployment topology.
 
-  ![image.png](images/images_bootstrap_5g_guide/image%204.png)
+> Improper configuration here can cause instance creation to fail or result in unreachable network components.
 
-  ![overview-resources-after-vpc-creation.jpg](images/images_bootstrap_5g_guide/overview-resources-after-vpc-creation.jpg)
-- Edit subnet settings to allow auto-assign public ipv4 address to instances
+---
 
-  ![public-subnet-settings.jpg](images/images_bootstrap_5g_guide/public-subnet-settings.jpg)
-- create you key-pair in EC2 menu
+  Finally, run the following command Vault password is *admin* but you can generate your own. The guide to setup ansible is shared in first steps. Please to it.
 
-  ![create-key-pair-download.jpg](images/images_bootstrap_5g_guide/create-key-pair-download.jpg)
+  In the same folder *e2e/provision/* run the following command:
 
-#### Step 2
+```bash
+  ./install_sandbox.sh
+```
 
-- Configure Ansible Playbooks with Values from the created AWS resources
+  Please NOTE CloudFormation can only exist in the current region where you want to install management cluster, If alread created in another region by another user, please follow the instrustions shared above and follow this guide on enabling multi-tenancy [HERE]{https://cluster-api-aws.sigs.k8s.io/topics/using-clusterawsadm-to-fulfill-prerequisites#cross-account-role-assumption}
 
-  - Variables to create management cluster Instances:
+  Bootstrapping takes for about 25-35mins depending on your internet speed
 
-  ![image.png](images/images_bootstrap_5g_guide/image%205.png)
-- - Auth Variables for Ansible to create AWS EC2 Instances:
-
-  ![image.png](images/images_bootstrap_5g_guide/image%206.png)
-
-  - Auth Variables for cloud formation and Cluster API:
-
-    ![image.png](images/images_bootstrap_5g_guide/image%207.png)
-- Auth Variables expire after 12hours, can be updated later!
-
-#### Step 3
-
-- Run the Ansible Playbook program from the local computer
-
-  ![image.png](images/images_bootstrap_5g_guide/image%208.png)
-- Takes 10-15mins bootstrapping the management cluster.
-- Will create 1 Control node and 2 worker nodes
-
-  ![image.png](images/images_bootstrap_5g_guide/image%209.png)
-
-#### Step 4
-
-- Accessing the Management Cluster Via SSH
-
-  - Management cluster nodes
-
-  ![image.png](images/images_bootstrap_5g_guide/image%2010.png)
-- SSH into the control node to access nephio components and create workload clusters
-
-#### Step 5
-
-- Check all the pods and repositories running in the management cluster
-
-  ![image.png](images/images_bootstrap_5g_guide/image%2011.png)
-- Stock  and management repositories
-
-  ![image.png](images/images_bootstrap_5g_guide/image%2012.png)
-
-#### Step 6
-
-- Accessing the Management Cluster Via webui
-
-  ![image.png](images/images_bootstrap_5g_guide/image%2013.png)
-
-  ![image.png](images/images_bootstrap_5g_guide/image%2014.png)
-
-#### Step 7
-
-- Accessing the Nephio Via webui
-
-1. Shows all registered repository, containing Infra resources for deployment
-2. Contains core packages for respective clusters in deployment
-3. All registered repositories from upstream provider
-
-  ![image.png](images/images_bootstrap_5g_guide/image%2015.png)
-
-#### Step 8
-
-- Creating workload clusters (core, regional and edge)
-
-1. Clone the git repo with packagevariants already created to create 3 clusters with one command and apply resources
-
-  ![image.png](images/images_bootstrap_5g_guide/image%2016.png)
-
-1. 3 drafts revisions for each cluster created
-
-  ![image.png](images/images_bootstrap_5g_guide/image%2017.png)
-
-1. If multi-cluster connectivity is a priority, delete the flannel PackageVariant from each clusters’ revision
-
-  ![image.png](images/images_bootstrap_5g_guide/image%2018.png)
-
-#### Step 9
-
-- Creating workload clusters (core, regional and edge)
-
-  ![image.png](images/images_bootstrap_5g_guide/image%2019.png)
-
-  ![image.png](images/images_bootstrap_5g_guide/image%2020.png)
-
-  Some infra and core packages in drafts in both mgmt and mgmt-staging respectively requires manual editing to add AWS variables and add git server URL and port
-
-  ![image.png](images/images_bootstrap_5g_guide/image%2021.png)
-
-#### Step 10
-
-- After 2-5mins we have the instances created, up and running and each cluster will have its own git repo.
-
-  ![image.png](images/images_bootstrap_5g_guide/image%2022.png)
-- Next, we have to get kubeconfig and install Cilium CNI otherwise if cluster interconnectivity is not required, no need to install a CNI as it will automatically be configured with Nephio through ArgoCD
-
-  ![image.png](images/images_bootstrap_5g_guide/image%2023.png)
-
-  ![image.png](images/images_bootstrap_5g_guide/image%2024.png)
-
-#### Step 11
-
-- Installing cilium CNI on the workload clusters (core, regional and edge)
-
-  ![image.png](images/images_bootstrap_5g_guide/image%2025.png)
-- install Cilium CNI otherwise if cluster interconnectivity is not required, no need to install a CNI as it will automatically be configured with Nephio through ArgoCD
-
-  ![image.png](images/images_bootstrap_5g_guide/image%2026.png)
-- After installing Cilium, we have to interconnect the clusters using the ciliumctl
-
-#### Step 12
-
-- Installing cilium CNI on the workload clusters (core, regional and edge)
-- Edge and core clusters interconnected:
-
-  ![image.png](images/images_bootstrap_5g_guide/image%2027.png)
-- install Cilium CNI otherwise if cluster interconnectivity is not required, no need to install a CNI as it will automatically be configured with Nephio through ArgoCD
-- After installing Cilium, we have to interconnect the clusters using the ciliumctl
-
-#### Step 13
-
-- Installing cilium CNI on the workload clusters (core, regional and edge)
-
-  ![image.png](images/images_bootstrap_5g_guide/image%2028.png)
-
-  Regional, Edge and core clusters interconnected and passed the cilium interconnectivity test:
-
-  ![image.png](images/images_bootstrap_5g_guide/image%2029.png)
-- install Cilium CNI otherwise if cluster interconnectivity is not required, no need to install a CNI as it will automatically be configured with Nephio through ArgoCD
-- After installing Cilium, we have to interconnect the clusters using the ciliumctl
-
-#### Step 14
-
-- Iperf Test – testing pod-pod communication between clusters
-- Iperf test conducted between edge and core cluster run successfully
-
-  ![image.png](images/images_bootstrap_5g_guide/image%2030.png)
+---
 
 ### **ACCESSING MANAGEMENT CLUSTER**
+
+  To access the management cluster, ssh into the master instance on the public IP address and change to root user
+
+  To access the nephio UI, run the following command in local computer and make sure the key file matches what you configured during bootstrapping
+
+```bash
+    ssh -i .\nephio3.pem ubuntu@<public-domain-name> -L 7007:localhost:7007 -L 3000:172.18.0.200:3000 sudo kubectl port-forward --namespace=nephio-webui svc/nephio-webui 7007
+```
+
+    The gitea server is on the public url which can be found by running the following command:
+
+```bash
+    kubectl get repository
+```
 
   To access the management cluster, ssh into the master instance on the public IP address and change to root user
 
@@ -295,7 +309,7 @@ ansible-vault decrypt playbooks/cred.yml
   To access the nephio web UI, run the following command in local computer in cmd and make sure the key file matches what you configured during bootstrapping.
 
 ```powershell
-  ssh -i <path/to/keypair.pem> [ubuntu@](mailto:ubuntu@ec2-43-201-59-147.ap-northeast-2.compute.amazonaws.com)<public-domain-name-mgmt-control-node> -L 7007:localhost:7007 -L 3000:172.18.0.200:3000 sudo kubectl port-forward --namespace=nephio-webui svc/nephio-webui 7007
+  ssh -i <path/to/keypair.pem> <username>@<public-domain-name-mgmt-control-node> -L 7007:localhost:7007 -L 3000:172.18.0.200:3000 sudo kubectl port-forward --namespace=nephio-webui svc/nephio-webui 7007
 ```
 
   Access the UI by going to
@@ -313,7 +327,7 @@ ansible-vault decrypt playbooks/cred.yml
   To access ArgoCD web UI for the management cluster, use the following command in cmd
 
 ```bash
-  ssh -i <path/to/keypair.pem> [ubuntu@](mailto:ubuntu@3.35.217.27)<public-domain-name-mgmt-control-node> -L 8080:localhost:443 sudo kubectl port-forward svc/argocd-server 443  
+  ssh -i <path/to/keypair.pem> <username>@<public-domain-name-mgmt-control-node> -L 8080:localhost:443 sudo kubectl port-forward svc/argocd-server 443  
 ```
 
   Access the UI by going to:
@@ -390,7 +404,7 @@ ansible-vault decrypt playbooks/cred.yml
   ![image.png](images/images_bootstrap_5g_guide/image%2040.png)
 - In the AWSMachineTemplate files add the machine flavor, keypair for the CP and worker node. For the worker node, the recommendation is to use c5.4xlarge
 - In the Cluster, add pod cidr and service cidr
-- Add AMI cluster API image tag in the **AWSMachineTemplate** resource, i used ami-0a1cfa462ff5dc5d9 available in the ap-northeast-2 region
+- Add AMI cluster API image tag in the **AWSMachineTemplate** resource, i used ami-0a1cfa462ff5dc5d9 available in the ap-southeast-1 region
 - Save, Propose and Approve
 - After sometime the cluster will be created on AWS
 - Repeat for all core and regional cluster and the clusters will be created
@@ -404,145 +418,15 @@ ansible-vault decrypt playbooks/cred.yml
 
   ![image.png](images/images_bootstrap_5g_guide/image%2043.png)
 
-### **COMMAND LINE STEP BY STEP GUIDE**
 
-  Get AWS SESSION TOKEN:
-
-```powershell
-  aws sts get-session-token --duration-seconds 129600
-  #if AMF is enabled in AWS use this command - assuming AWS CLI is already configured following the above link
-  aws sts get-session-token --duration-seconds 129600 --serial-number arn:aws:iam::935317843233:mfa/VtiPhone-14P --token-code 890658
-```
-
-  Install python libraries in environment by creating a virtual env and activating it
-
-  Create passwordless (***ubuntu***) user on the machine that will run the playbook
-
-```bash
-  python3 -m venv aws-ve
-  source aws-venv/bin/activate
-```
-
-  Clone, rename and move the folder into nephio
-
-```bash
-  git clone https://github.com/vitu-mafeni/nephio-test-infra-aws.git
-  cd test-infra-aws/e2e/provision/
-```
-
-  Go the e2e/provision and run the following command
-
-```bash
-  pip install -r requirements.txt
-```
-
-  Since ansible is installed to another location, add it to path
-
-```bash
-  export PATH="$PATH:/home/ubuntu/.local/bin"
-  source ~/.bashrc   # or ~/.bash_profile or ~/.profile based on your configuration
-
-```
-
-  Run the following Galaxy commands
-
-```bash
-  ansible-galaxy collection install ansible.posix
-  ansible-galaxy collection install amazon.aws
-```
-
-  In the same folder e2e/provision run the following command
-
-```bash
-  ansible-galaxy install -r galaxy-requirements.yml
-```
-
-  **In AWS, create and download security key pair, VPC and subnet. Get the region name, VPC ID, public subnet ID, keypair and AMI**
-
-  Open */e2e/provision/playbooks/roles/ec2/vars/main.yml*  and put the variable names in *region_name, subnet_name, ami_id, vpc_id, keypair* and *instance_flavour.*
-
-  Instance names/tags can also be changed in this file, I named mine master, slave1, slave2
-
-  Place the downloaded key pair in *e2e/provision/playbooks/nephio3.pem* in my case the keypair name in AWS is nephio3 and the file name is also nephio3. Change based on your naming
-
-  Change the permission of the keypair
-
-```bash
-  chmod 400 playbooks/nephio3.pem
-```
-
-  The file *e2e/provision/install_sandbox.sh*  also contains the location of the keyfile above on private_key_file=~/nephio-test-infra-aws/e2e/provision/playbooks/nephio3.pem make sure it matches your naming and location
-
-  Place AWS credentials in *e2e/provision/playbooks/setup.yml* in the following section for cloud formation
-
-```yaml
-  environment:
-      AWS_REGION: ap-northeast-2
-      AWS_ACCESS_KEY_ID: ""
-      AWS_SECRET_ACCESS_KEY: ""
-      AWS_SESSION_TOKEN: ""
-```
-
-  Like wise, place the credentials in *e2e/provision/playbooks/roles/capa/vars/main.yml* following section for CAPA
-
-```yaml
-  aws_region: "ap-northeast-2"
-  aws_access_key: ""
-  aws_secret_key: ""
-  aws_session_token: 
-```
-
-  Finally, run the following command Vault password is *admin* but you can generate your own
-
-  In the same folder /e2e/provision run the following command
-
-```bash
-  ./install_sandbox.sh
-```
-
-  Please NOTE CloudFormation can only exist in the current region where you want to install management cluster
-
-  Bootstrapping takes for about 20-30mins depending on your internet speed
-
----
-
-  To access the management cluster, ssh into the master instance on the public IP address and change to root user
-
-  To access the nephio UI, run the following command in local computer and make sure the key file matches what you configured during bootstrapping
-
-```bash
-  ssh -i .\nephio3.pem [ubuntu@](mailto:ubuntu@ec2-43-201-59-147.ap-northeast-2.compute.amazonaws.com)<public-domain-name> -L 7007:localhost:7007 -L 3000:172.18.0.200:3000 sudo kubectl port-forward --namespace=nephio-webui svc/nephio-webui 7007
-```
-
-  The gitea server is on the public url which can be found by running the following command:
-
-```bash
-  kubectl get repository
-```
-
-  Quite often, the CAPI environment variables might be lost after bootstrapping so you have to run these commands on the master node
-
-```bash
-  export AWS_REGION=ap-northeast-2 # This is used to help encode your environment variables
-  export AWS_ACCESS_KEY_ID=<your-access-key>
-  export AWS_SECRET_ACCESS_KEY=<your-secret-access-key>
-  export AWS_SESSION_TOKEN=<session-token> # If you are using Multi-Factor Auth.
-  export AWS_B64ENCODED_CREDENTIALS=$(clusterawsadm bootstrap credentials encode-as-profile)
-  clusterawsadm controller update-credentials
-  clusterawsadm controller rollout-controller
-```
-
-  The following errors may appear and their suggestive solutions for now:
-
-```bash
-  fatal: [3.35.176.148]: FAILED! => {"cache_update_time": 1722154084, "cache_updated": true, "changed": false, "msg": "'/usr/bin/apt-get -y -o \"Dpkg::Options::=--force-confdef\" -o \"Dpkg::Options::=--force-confold\"       install 'kubelet=1.29.7-1.1'' failed: E: Could not get lock /var/lib/dpkg/lock-frontend. It is held by process 4588 (unattended-upgr)\nE: Unable to acquire the dpkg frontend lock (/var/lib/dpkg/lock-frontend), is another process using it?\n", "rc": 100, "stderr": "E: Could not get lock /var/lib/dpkg/lock-frontend. It is held by process 4588 (unattended-upgr)\nE: Unable to acquire the dpkg frontend lock (/var/lib/dpkg/lock-frontend), is another process using it?\n", "stderr_lines": ["E: Could not get lock /var/lib/dpkg/lock-frontend. It is held by process 4588 (unattended-upgr)", "E: Unable to acquire the dpkg frontend lock (/var/lib/dpkg/lock-frontend), is another process using it?"], "stdout": "", "stdout_lines": []}
-```
-
-  If the above error Occurs, just re-run the playbook
+  #### **After Cluster Creation - Label the clusters**
+  ```bash
+    kubectl label WorkloadCluster my-cluster nephio.org/site-type=<clustername>
+  ```
 
 ### **Inter-cluster networking - Optional**
 
-  **load clusters**
+  **Workload clusters**
 
   You will also need to configure the clusters with Cilium. Again, this will be automated in a future release.
 
@@ -642,131 +526,23 @@ ansible-vault decrypt playbooks/cred.yml
   kubectl exec -it iperf-client -- iperf3 -c <server-ip> -i 5
 ```
 
-### **OAI 5G CONFIGURATION**
 
-  Below is the overall IP addresses configured on the clusters
 
-  ![image.png](images/images_bootstrap_5g_guide/image%2044.png)
+---
 
-  Attach Extra interfaces to each worker node in each workload cluster and each of the interfaces has to achieve the following IP addresses for this demo
+### If Using Cilium CNI
 
-- 4 extra Interfaces to the edge cluster – edge worker node:
-
-  ![image.png](images/images_bootstrap_5g_guide/image%2045.png)
-- 2 extra Interfaces to the core cluster – core worker node:
-
-  ![image.png](images/images_bootstrap_5g_guide/image%2046.png)
-- 3 extra Interfaces to the regional cluster –regional worker node:
-
-  ![image.png](images/images_bootstrap_5g_guide/image%2047.png)
-- Ssh into the bastion host then into each worker node in each workload cluster and install gtp module
-
-  In the test scenario, using the Nephio Topology as shown in the diagram below
-
-  ![image.png](images/images_bootstrap_5g_guide/image%2048.png)
-
-  I configured the following network and interfaces for my clusters - interfaces:
-
-  Install gtp5g module on edge clusters all worker nodes
+**Important:** Disable Cilium exclusivity over `/etc/cni/net.d` on all nodes.
 
 ```bash
-  sudo su
-  git clone https://github.com/free5gc/gtp5g.git
-  cd gtp5g
-  make
-  make install
+kubectl edit cm -n kube-system cilium-config --kubeconfig core.kubeconfig
+
+# Set this field:
+exclusive: false
 ```
 
-  After attaching the interfaces to the worker nodes as shown in the picture above and no IP address is added to the interface, run this command to force DHCP resolve the client:
+Restart related DaemonSets:
 
 ```bash
-  #try this 
-  sudo dhclient
-  #or
-  sudo dhclient <interface-namesip>
-```
-
-  after the above command, IP routes will change, do the following to revert to original routes
-
-  As a example on the edge cluster, delete conflicting routes. Do the same procedure on the other clusters
-
-  Since `ens11` also has a `192.168.1.x` address, remove its conflicting route:
-
-```bash
-
-  sudo ip route del 192.168.1.0/24 dev ens11
-
-```
-
-  This prevents traffic from using `ens11` instead of `ens3`.
-
-  **Test the instances if they can ping each other and proceed**
-
-  In the management cluster clone the following repos
-
-```bash
-  git clone https://github.com/vitu-mafeni/oai-packages.git
-  git clone https://github.com/vitu-mafeni/catalog.git
-  git clone https://github.com/vitu-mafeni/nephio-test-infra-openstack
-
-  mv nephio-test-infra-openstack/ test-infra
-```
-
-  Follow the official guide https://github.com/nephio-project/docs/blob/main/content/en/docs/guides/user-guides/exercise-2-oai.md from step 3
-
-  For testing purposes, the following was used for configuring interfaces on nodes. These configuration should match what is in oai-packages/oai-* nad-*.yaml files
-
-  ![5G ip addresses image.png](images/images_bootstrap_5g_guide/5G_ip_addresses_image.png)
-
-  On step 5 of the upstream documentation there is a note below:
-
-> *All the NFs will wait for NRF to come up and then they will register to NRF. SMF has a dependency on UPF which is described by dependency.yaml file in SMF package. It will wait till the time UPF is deployed. It takes around ~800 seconds for the whole core network to come up. NRF is exposing its service via MetalLB external ip-address. In case MetalLB ip-address pool is not properly defined in the previous section, then UPF will not be able to register to NRF and in this case SMF and UPF will not be able to communicate.*
-
-  The nrf and udr requires a LoadBalancer Service. In the test setup, I configured in oai-cp-operators Deployments in oai-udr-operator and oai-nrf-operator. Changing the environment variable env: SVC_TYPE = LoadBalancer and put the LoadBalancer in it directly
-
-  Get the LBA IP address and put it for the UPF in **oai-up-operators in the edge repo ConfigMap oai-upf-op-conf and put the NodePort IP address for NRF and the port the service is running on.**
-
-```yaml
-      fqdn:
-        nrf: 'nrf-service-address-here'
-        //example  nrf: '192.168.28.148'
-```
-
-  **BONUS COMMANDS IN CASE THE UI IS  NOT WORKING AND WANT TO EDIT PUBLISHED PACKAGES**
-
-```bash
-  porchctl rpkg copy -n default core-75b3994efd9406140903f2433c2289ad8ceb0a86 --workspace=v2
-  ## WE CAN SEE THE DRAFT VERSION, CLONE IT AND EDIT
-  porchctl rpkg get --name oai-amf
-  ## pull in the local directory
-  **porchctl rpkg pull core-f0cdd017cb2ca35fb48955fb3ae68fa033efca0e -ndefault oai-amf
-  ##Push the package
-   porchctl rpkg push core-f0cdd017cb2ca35fb48955fb3ae68fa033efca0e -ndefault oai-amf
-  # List package revisions to identify relevant drafts:**
-  porchctl rpkg get --name oai-amf
-  # Propose draft package revisions to be be published
-  porchctl rpkg propose core-f0cdd017cb2ca35fb48955fb3ae68fa033efca0e -ndefault
-  # Confirm the package revisions are now Proposed
-  porchctl rpkg get --name oai-amf
-  # Approve a proposal to publish a package revision
-  porchctl rpkg approve core-f0cdd017cb2ca35fb48955fb3ae68fa033efca0e -ndefault
-
-```
-
-  **Hint: If using with cilium CNI, set the following to false] ALL NODES**
-
-```bash
-    kubectl edit cm -n kube-system cilium-config  --kubeconfig core.kubeconfig
-
-    # -- Make Cilium take ownership over the `/etc/cni/net.d` directory on the
-    # node, renaming all non-Cilium CNI configurations to `*.cilium_bak`.
-    # This ensures no Pods can be scheduled using other CNI plugins during Cilium
-    # agent downtime.
-    exclusive: true
-```
-
-  Restart daemonsets for multus and cilium
-
-```bash
-  kubectl rollout restart ds cilium kube-multus-ds  -n kube-system --kubeconfig core.kubeconfig
+kubectl rollout restart ds cilium kube-multus-ds -n kube-system --kubeconfig core.kubeconfig
 ```

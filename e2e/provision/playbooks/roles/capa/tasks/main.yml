@@ -54,6 +54,15 @@
         + ([ "AWS_SECRET_ACCESS_KEY: " ~ aws_secret_key ] if aws_secret_key is defined and aws_secret_key | length > 0 else [])
         + ([ "AWS_SESSION_TOKEN: " ~ aws_session_token ] if aws_session_token is defined and aws_session_token | length > 0 else [])
       }}
+    msg: >
+      {{
+        [
+          "AWS_REGION: " ~ aws_region
+        ]
+        + ([ "AWS_ACCESS_KEY_ID: " ~ aws_access_key ] if aws_access_key is defined and aws_access_key | length > 0 else [])
+        + ([ "AWS_SECRET_ACCESS_KEY: " ~ aws_secret_key ] if aws_secret_key is defined and aws_secret_key | length > 0 else [])
+        + ([ "AWS_SESSION_TOKEN: " ~ aws_session_token ] if aws_session_token is defined and aws_session_token | length > 0 else [])
+      }}
 
 - name: Create cloud formation using clusterawsadm
   become: yes
@@ -69,11 +78,30 @@
       | combine({'AWS_SESSION_TOKEN': aws_session_token} if aws_session_token is defined and aws_session_token | length > 0 else {})
     }}
   when: cloud_formation_create | bool
+  environment: >-
+    {{
+      {
+        'AWS_REGION': aws_region
+      }
+      | combine({'AWS_ACCESS_KEY_ID': aws_access_key} if aws_access_key is defined and aws_access_key | length > 0 else {})
+      | combine({'AWS_SECRET_ACCESS_KEY': aws_secret_key} if aws_secret_key is defined and aws_secret_key | length > 0 else {})
+      | combine({'AWS_SESSION_TOKEN': aws_session_token} if aws_session_token is defined and aws_session_token | length > 0 else {})
+    }}
+  when: cloud_formation_create | bool
 
 - name: Encode credentials using clusterawsadm
   become: yes
   become_method: sudo
   command: "clusterawsadm bootstrap credentials encode-as-profile"
+  environment: >-
+    {{
+      {
+        'AWS_REGION': aws_region
+      }
+      | combine({'AWS_ACCESS_KEY_ID': aws_access_key} if aws_access_key is defined and aws_access_key | length > 0 else {})
+      | combine({'AWS_SECRET_ACCESS_KEY': aws_secret_key} if aws_secret_key is defined and aws_secret_key | length > 0 else {})
+      | combine({'AWS_SESSION_TOKEN': aws_session_token} if aws_session_token is defined and aws_session_token | length > 0 else {})
+    }}
   environment: >-
     {{
       {
