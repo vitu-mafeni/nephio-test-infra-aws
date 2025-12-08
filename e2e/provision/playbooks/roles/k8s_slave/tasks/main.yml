@@ -1,5 +1,11 @@
 ---
 # tasks file for k8s_slave
+- name: Replace default Ubuntu mirror with main archive.ubuntu.com
+  replace:
+    path: /etc/apt/sources.list
+    regexp: 'http://.*.ec2.archive.ubuntu.com'
+    replace: 'http://archive.ubuntu.com'
+
 - name: update APT packages
   apt:
     update_cache: yes
@@ -27,8 +33,8 @@
   blockinfile:
     path: /etc/modules-load.d/containerd.conf
     block: |
-          overlay
-          br_netfilter
+      overlay
+      br_netfilter
 
 - name: create an empty file for Kubernetes sysctl params
   copy:
@@ -41,9 +47,9 @@
     path: /etc/sysctl.d/99-kubernetes-cri.conf
     line: "{{ item }}"
   with_items:
-    - 'net.bridge.bridge-nf-call-iptables  = 1'
-    - 'net.ipv4.ip_forward                 = 1'
-    - 'net.bridge.bridge-nf-call-ip6tables = 1'
+  - 'net.bridge.bridge-nf-call-iptables  = 1'
+  - 'net.ipv4.ip_forward                 = 1'
+  - 'net.bridge.bridge-nf-call-ip6tables = 1'
 
 - name: apply sysctl params without reboot
   command: sysctl --system
@@ -67,7 +73,8 @@
     force: true
 - name: Gather facts
   setup:
-  
+
+
 - name: add Docker's APT repository
   apt_repository:
     repo: "deb [arch={{ 'amd64' if ansible_architecture == 'x86_64' else 'arm64' }} signed-by=/etc/apt/keyrings/docker-apt-keyring.asc] https://download.docker.com/linux/ubuntu {{ ansible_distribution_release }} stable"

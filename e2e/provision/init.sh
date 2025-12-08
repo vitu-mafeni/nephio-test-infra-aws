@@ -61,10 +61,10 @@ export DEBUG=${NEPHIO_DEBUG:-$(get_metadata nephio-setup-debug "false")}
 [[ $DEBUG != "true" ]] || set -o xtrace
 
 RUN_E2E=${NEPHIO_RUN_E2E:-$(get_metadata nephio-run-e2e "false")}
-REPO=${NEPHIO_REPO:-$(get_metadata nephio-test-infra-repo "https://github.com/vitu1234/test-infra.git")}
+REPO=${NEPHIO_REPO:-$(get_metadata nephio-test-infra-repo "https://github.com/vitu-mafeni/test-infra.git")}
 BRANCH=${NEPHIO_BRANCH:-$(get_metadata nephio-test-infra-branch "main")}
 NEPHIO_USER=${NEPHIO_USER:-$(get_metadata nephio-user "${USER:-ubuntu}")}
-NEPHIO_CATALOG_REPO_URI=${NEPHIO_CATALOG_REPO_URI:-$(get_metadata nephio-catalog-repo-uri "https://github.com/vitu1234/catalog.git")}
+NEPHIO_CATALOG_REPO_URI=${NEPHIO_CATALOG_REPO_URI:-$(get_metadata nephio-catalog-repo-uri "https://github.com/vitu-mafeni/catalog.git")}
 export ANSIBLE_CMD_EXTRA_VAR_LIST="nephio_catalog_repo_uri='$NEPHIO_CATALOG_REPO_URI'"
 HOME=${NEPHIO_HOME:-/home/$NEPHIO_USER}
 REPO_DIR=${NEPHIO_REPO_DIR:-$HOME/test-infra}

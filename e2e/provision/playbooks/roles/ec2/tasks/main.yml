@@ -38,6 +38,10 @@
   debug:
     msg: "Subnet ID is {{ my_subnet.subnet.id }}"
 
+- name: Output Public Subnet AZ
+  debug:
+    msg: "Public Subnet AZ is {{ my_subnet.subnet.availability_zone }}"
+
 - name: Create internet gateway
   ec2_vpc_igw:
     vpc_id: "{{ my_vpc.vpc.id }}"
@@ -51,6 +55,33 @@
 - name: Output Internet Gateway ID
   debug:
     msg: "Internet Gateway ID is {{ igw.gateway_id }}"
+
+- name: Create and associate route table
+  community.aws.ec2_vpc_route_table:
+    vpc_id: "{{ my_vpc.vpc.id }}"
+    region: "{{ region_name }}"
+    aws_access_key: "{{ access_key }}"
+    aws_secret_key: "{{ secret_key }}"
+    tags:
+      Name: "{{ vpc_name }}-rt"
+    subnets:
+    - "{{ my_subnet.subnet.id }}"
+    routes:
+    - dest: 0.0.0.0/0
+      gateway_id: "{{ igw.gateway_id }}"
+  register: my_route_table
+
+- name: Add route to the internet
+  community.aws.ec2_vpc_route_table:
+    vpc_id: "{{ my_vpc.vpc.id }}"
+    tags:
+      Name: "{{ vpc_name }}-rt"
+    routes:
+    - dest: 0.0.0.0/0
+      gateway_id: "{{ igw.gateway_id }}"
+    region: "{{ region_name }}"
+    aws_access_key: "{{ access_key }}"
+    aws_secret_key: "{{ secret_key }}"
 
 - name: Creating Security Group for K8s Cluster
   amazon.aws.ec2_security_group:
@@ -71,6 +102,131 @@
     rules_egress:
     - proto: all
       cidr_ip: 0.0.0.0/0
+  register: my_sg
+
+# Create Elastic IP for NAT Gateway
+- name: Allocate Elastic IP for NAT
+  amazon.aws.ec2_eip:
+    region: "{{ region_name }}"
+    in_vpc: true
+    aws_access_key: "{{ access_key }}"
+    aws_secret_key: "{{ secret_key }}"
+    state: present
+    tags:
+      Name: "my-nephio-elastic-ip"
+  register: nat_eip
+
+- name: Create NAT Gateway in public subnet
+  amazon.aws.ec2_vpc_nat_gateway:
+    subnet_id: "{{ my_subnet.subnet.id }}"
+    allocation_id: "{{ nat_eip.allocation_id }}"
+    region: "{{ region_name }}"
+    aws_access_key: "{{ access_key }}"
+    aws_secret_key: "{{ secret_key }}"
+    state: present
+    tags:
+      Name: "my-nephio-nat-gateway"
+  register: nat_gateway
+
+- name: Check NAT Gateway status and wait for it to be avaiable
+  amazon.aws.ec2_vpc_nat_gateway_info:
+    filters:
+      "nat-gateway-id": "{{ nat_gateway.nat_gateway_id }}"
+    region: "{{ region_name }}"
+    aws_access_key: "{{ access_key }}"
+    aws_secret_key: "{{ secret_key }}"
+  register: nat_status
+  until: nat_status.result is defined and nat_status.result | length > 0 and nat_status.result[0].state == "available"
+  retries: 20
+  delay: 15
+  delegate_to: localhost
+
+- name: Create private subnet
+  amazon.aws.ec2_vpc_subnet:
+    state: present
+    vpc_id: "{{ my_vpc.vpc.id }}"
+    cidr: "{{ private_subnet_cidr_block }}"
+    az: "{{ my_subnet.subnet.availability_zone }}"
+    region: "{{ region_name }}"
+    aws_access_key: "{{ access_key }}"
+    aws_secret_key: "{{ secret_key }}"
+    tags:
+      Name: "{{ vpc_name }}-private-subnet"
+  register: private_subnet
+
+- name: Create route table for private subnet
+  amazon.aws.ec2_vpc_route_table:
+    vpc_id: "{{ my_vpc.vpc.id }}"
+    region: "{{ region_name }}"
+    aws_access_key: "{{ access_key }}"
+    aws_secret_key: "{{ secret_key }}"
+    tags:
+      Name: "{{ vpc_name }}-private-rt"
+    subnets:
+    - "{{ private_subnet.subnet.id }}"
+    routes:
+    - dest: 0.0.0.0/0
+      nat_gateway_id: "{{ nat_gateway.nat_gateway_id }}"
+
+## additional
+- name: Create additional private subnets and route tables
+  block:
+  - name: Create private subnet {{ item.name }}
+    amazon.aws.ec2_vpc_subnet:
+      state: present
+      vpc_id: "{{ my_vpc.vpc.id }}"
+      cidr: "{{ item.cidr }}"
+      az: "{{ my_subnet.subnet.availability_zone }}"
+      region: "{{ region_name }}"
+      aws_access_key: "{{ access_key }}"
+      aws_secret_key: "{{ secret_key }}"
+      tags:
+        Name: "{{ item.name }}"
+    loop: "{{ private_subnets }}"
+    loop_control:
+      loop_var: item
+    delegate_to: localhost
+    register: private_subnet_results
+
+  - name: Create route table for {{ item.item.name }}
+    amazon.aws.ec2_vpc_route_table:
+      vpc_id: "{{ my_vpc.vpc.id }}"
+      region: "{{ region_name }}"
+      aws_access_key: "{{ access_key }}"
+      aws_secret_key: "{{ secret_key }}"
+      tags:
+        Name: "{{ item.item.name }}-rt"
+      subnets:
+      - "{{ item.subnet.id }}"
+      routes:
+      - dest: 0.0.0.0/0
+        nat_gateway_id: "{{ nat_gateway.nat_gateway_id }}"
+    loop: "{{ private_subnet_results.results }}"
+    delegate_to: localhost
+
+## create ENIs
+- name: Map subnet name to ID
+  set_fact:
+    subnet_id_map: >-
+      {{
+        dict(private_subnet_results.results | map(attribute='item.name') | zip(private_subnet_results.results | map(attribute='subnet.id')))
+      }}
+
+- name: Create ENIs
+  amazon.aws.ec2_eni:
+    state: present
+    region: "{{ region_name }}"
+    aws_access_key: "{{ access_key }}"
+    aws_secret_key: "{{ secret_key }}"
+    subnet_id: "{{ subnet_id_map[item.subnet_name] }}"
+    private_ip_address: "{{ item.ip }}"
+    tags:
+      Name: "{{ item.name }}"
+      Role: "{{ item.name.split('-')[1] | default('unknown') }}"
+      SubnetName: "{{ item.subnet_name }}"
+  loop: "{{ network_interfaces }}"
+  loop_control:
+    label: "{{ item.name }}"
 
 - name: Launching three EC2 instances on AWS
   amazon.aws.ec2_instance:
@@ -78,7 +234,7 @@
     key_name: "{{ keypair }}"
     vpc_subnet_id: "{{ my_subnet.subnet.id }}"
     instance_type: "{{ instance_flavour }}"
-    security_group: "{{ sg_name }}"
+    security_group: "{{ my_sg.group_id }}"
     aws_access_key: "{{ access_key }}"
     aws_secret_key: "{{ secret_key }}"
     region: "{{ region_name }}"

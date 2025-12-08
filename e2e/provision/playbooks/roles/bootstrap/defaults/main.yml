@@ -10,8 +10,8 @@
 
 host_reqs:
   sandbox:
-    vcpu: 6  # minimum vCPUs required for the Sandbox installation
-    memory: 6  # minimum memory required for the Sandbox installation
+    vcpu: 6 # minimum vCPUs required for the Sandbox installation
+    memory: 6 # minimum memory required for the Sandbox installation
   end_to_end:
     vcpu: 16
     memory: 32
@@ -29,93 +29,107 @@ k8s:
 # kind:
 #   enabled: true
 
-nephio_catalog_repo_uri: https://github.com/vitu1234/catalog.git
+nephio_catalog_repo_uri: https://github.com/vitu-mafeni/catalog.git
 nephio_catalog_revision: v2.0.0
 
 gitea:
   enabled: true
   k8s:
     namespace: gitea
-    postgres_password: c2VjcmV0  # echo -n "secret" | base64
+    postgres_password: c2VjcmV0 # echo -n "secret" | base64
     db_password: c2VjcmV0
     username: nephio
     password: secret
     namespaces:
-      - gitea
+    - gitea
   kpt:
     packages:
-      - repo_uri: "{{ nephio_catalog_repo_uri }}"
-        pkg: distros/sandbox/gitea
-        version: "{{ nephio_catalog_revision }}"
-        async: 780
-        poll: 0
+    - repo_uri: "{{ nephio_catalog_repo_uri }}"
+      pkg: distros/sandbox/gitea
+      version: "{{ nephio_catalog_revision }}"
+      async: 780
+      poll: 0
 
 resource_backend:
   enabled: true
   k8s:
     namespaces:
-      - backend-system
+    - backend-system
   kpt:
     packages:
-      - repo_uri: "{{ nephio_catalog_repo_uri }}"
-        pkg: nephio/optional/resource-backend
-        version: "{{ nephio_catalog_revision }}"
-        async: 780
-        poll: 0
+    - repo_uri: "{{ nephio_catalog_repo_uri }}"
+      pkg: nephio/optional/resource-backend
+      version: "{{ nephio_catalog_revision }}"
+      async: 780
+      poll: 0
 
 cert_manager:
   enabled: true
   k8s:
     namespaces:
-      - cert-manager
+    - cert-manager
   kpt:
     packages:
-      - repo_uri: "{{ nephio_catalog_repo_uri }}"
-        pkg: distros/sandbox/cert-manager
-        version: "{{ nephio_catalog_revision }}"
-        async: 660
-        poll: 0
+    - repo_uri: "{{ nephio_catalog_repo_uri }}"
+      pkg: distros/sandbox/cert-manager
+      version: "{{ nephio_catalog_revision }}"
+      async: 660
+      poll: 0
 
 cluster_api:
   enabled: true
   k8s:
     namespaces:
-      - capi-system
-      - capi-kubeadm-control-plane-system
-      - capi-kubeadm-bootstrap-system
-      - capd-system
+    - capi-system
+    - capi-kubeadm-control-plane-system
+    - capi-kubeadm-bootstrap-system
+    - capd-system
   kpt:
     packages:
-      - repo_uri: "{{ nephio_catalog_repo_uri }}"
-        pkg: infra/capi/cluster-capi
-        version: "{{ nephio_catalog_revision }}"
-        async: 900
-        poll: 5
-      # - repo_uri: "{{ nephio_catalog_repo_uri }}"
-      #   pkg: infra/capi/cluster-capi-aws
-      #   version: "{{ nephio_catalog_revision }}"
-      #   async: 780
-      #   poll: 5
-      # - repo_uri: "{{ nephio_catalog_repo_uri }}"
-      #   pkg: infra/capi/cluster-capi-kind-docker-templates
-      #   version: "{{ nephio_catalog_revision }}"
-      #   async: 1500
-      #   poll: 0
+    - repo_uri: "{{ nephio_catalog_repo_uri }}"
+      pkg: infra/capi/cluster-capi
+      version: "{{ nephio_catalog_revision }}"
+      async: 900
+      poll: 5
+    # - repo_uri: "{{ nephio_catalog_repo_uri }}"
+    #   pkg: infra/capi/cluster-capi-aws
+    #   version: "{{ nephio_catalog_revision }}"
+    #   async: 780
+    #   poll: 5
+    # - repo_uri: "{{ nephio_catalog_repo_uri }}"
+    #   pkg: infra/capi/cluster-capi-kind-docker-templates
+    #   version: "{{ nephio_catalog_revision }}"
+    #   async: 1500
+    #   poll: 0
+
+
+kt_cloud_api:
+  enabled: true
+  k8s:
+    namespaces:
+    - kt-cloud-operator-system
+  kpt:
+    packages:
+    - repo_uri: "{{ nephio_catalog_repo_uri }}"
+      pkg: infra/kt/kt-cloud-operator
+      version: "{{ nephio_catalog_revision }}"
+      async: 900
+      poll: 5
 
 metallb:
   enabled: true
   k8s:
     namespaces:
-      - metallb-system
+    - metallb-system
   kpt:
     packages:
-      - repo_uri: "{{ nephio_catalog_repo_uri }}"
-        pkg: distros/sandbox/metallb
-        version: "{{ nephio_catalog_revision }}"
-        async: 1020
-        poll: 5
-      - repo_uri: "{{ nephio_catalog_repo_uri }}"
-        pkg: distros/sandbox/metallb-sandbox-config
-        version: "{{ nephio_catalog_revision }}"
-        async: 660
-        poll: 0
+    - repo_uri: "{{ nephio_catalog_repo_uri }}"
+      pkg: distros/sandbox/metallb
+      version: "{{ nephio_catalog_revision }}"
+      async: 1020
+      poll: 5
+    - repo_uri: "{{ nephio_catalog_repo_uri }}"
+      pkg: distros/sandbox/metallb-sandbox-config
+      version: "{{ nephio_catalog_revision }}"
+      async: 660
+      poll: 0

@@ -426,7 +426,7 @@ ansible-vault decrypt playbooks/cred.yml
   Clone, rename and move the folder into nephio
 
 ```bash
-  git clone https://github.com/vitu1234/nephio-test-infra-aws.git
+  git clone https://github.com/vitu-mafeni/nephio-test-infra-aws.git
   cd test-infra-aws/e2e/provision/
 ```
 
@@ -705,9 +705,9 @@ ansible-vault decrypt playbooks/cred.yml
   In the management cluster clone the following repos
 
 ```bash
-  git clone https://github.com/vitu1234/oai-packages.git
-  git clone https://github.com/vitu1234/catalog.git
-  git clone https://github.com/vitu1234/nephio-test-infra-openstack
+  git clone https://github.com/vitu-mafeni/oai-packages.git
+  git clone https://github.com/vitu-mafeni/catalog.git
+  git clone https://github.com/vitu-mafeni/nephio-test-infra-openstack
 
   mv nephio-test-infra-openstack/ test-infra
 ```

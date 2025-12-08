@@ -58,4 +58,3 @@ spec:
     approval.nephio.org/policy: initial
   injectors:
   - name: edge
-

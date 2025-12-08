@@ -2,14 +2,15 @@
 # vars file for capa
 
 service_names:
-  - "docker"
-  - "kubelet"
+- "docker"
+- "kubelet"
 
-clusterctl_version: v1.9.6
-clusterawsadm: v2.7.1
+clusterctl_version: v1.11.1
+clusterawsadm: v2.10.0
 
+aws_region: "ap-southeast-1"
+aws_access_key: ""
+aws_secret_key: ""
 
-aws_region: "ap-northeast-2"
-aws_access_key: "$AWS_ACCESS_KEY_ID_HERE"
-aws_secret_key: "$AWS_SECRET_ACCESS_KEY_HERE"
-aws_session_token: "$AWS_SESSION_TOKEN_HERE"
+# aws_session_token: "$AWS_SESSION_TOKEN_HERE"
+cloud_formation_create: false
